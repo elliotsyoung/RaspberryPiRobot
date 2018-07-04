@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="css/animate.css">
+  <title>Teaching Assistant</title>
+  <style media="screen">
+  body{
+    height: 100vh; background: repeating-linear-gradient(
+      45deg,
+      #392759,
+      #392759 10px,
+      #080708 10px,
+      #080708 20px
+      ); color: white;
+    }
+
+    .vertical-center{
+      min-height: 100%;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+    }
+    #emotion{
+      margin-top: 1em;
+      width: 25%;
+    }
+    </style>
+  </head>
+  <body>
+    <div id="container" class="container">
+      <div class="row text-center">
+        <div class="col">
+
+          <h1 class="text-white bg-primary" style="border-radius: 10px; padding: 10px;">Teaching Assistant</h1>
+          <!-- <h1 id="emotion" style="font-size: 110px;"></h1> -->
+          <img id="emotion" class="" src="https://emojipedia-us.s3.amazonaws.com/thumbs/320/apple/118/slightly-smiling-face_1f642.png" alt="">
+          <h3 id="spoken-text" class="bg-primary" style="padding: 1em; border-radius: 1em;"></h3>
+          <h2 id="currently-typing" class="animated pulse infinite">Processing Response...</h2>
+        </div>
+        <!-- END OF COL -->
+      </div>
+    </div>
+
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" type="text/javascript"></script>
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.7.13.min.js"></script>
+    <script type="text/javascript" src="./other-dependencies/ChattyKathy.js"></script>
+    <script type="text/javascript" src="renderer.js"></script>
+
+    <script>
+    // JQUERY FUNCTION START
+    $(function () {
+
+      //################################################################
+      // KATHY SETUP
+      //################################################################
+      const app_keys = require("./keys");
+      var awsCredentials = new AWS.Credentials(app_keys.aws_access_key_id, app_keys.aws_secret_key);
+      var settings = {
+        awsCredentials: awsCredentials,
+        awsRegion: "us-west-2",
+        pollyVoiceId: "Brian",
+        cacheSpeech: true
+      }
+      var kathy = ChattyKathy(settings);
+
+      // kathy.Speak("Hello world, my name is Kathy!");
+      // kathy.Speak("I can be used for an amazing user experience!");
+
+      if (kathy.IsSpeaking()) {
+        kathy.ShutUp();
+      }
+
+      kathy.ForgetCachedSpeech();
+
+      //################################################################
+      // SOCKET SETUP
+      //################################################################
+
+      $('#currently-typing').hide();
+
+
+      const {ipcRenderer} = require('electron')
+
+      ipcRenderer.on("robot speak command", function(event, msg){
+        console.log("robot speak command recieved");
+        console.log(msg);
+        ipcRenderer.send('focus', 'true');
+        $("#emotion").attr("src", "https://emojipedia-us.s3.amazonaws.com/thumbs/320/apple/118/slightly-smiling-face_1f642.png")
+        $("#spoken-text").html(msg)
+        $("#spoken-text").show();
+        $('#currently-typing').hide();
+        animateSmiley();
+        $("#emotion").removeClass("animated swing infinite")
+        $("#emotion").addClass("animated rubberBand")
+        kathy.Speak(msg);
+        setTimeout(() => {
+          $("#spoken-text").hide();
+        }, 6000);
+      });
+
+      var socket = require('socket.io-client')('https://fusionpaloalto.elliotsyoung.com')
+      // var socket = require('socket.io-client')('http://localhost:3000')
+      socket.emit('subscribe', {room:'pi-client'})
+
+      socket.on('robot speak command', function(msg){
+        console.log("robot speak command recieved");
+        console.log(msg);
+        ipcRenderer.send('focus', 'true');
+        $("#emotion").attr("src", "https://emojipedia-us.s3.amazonaws.com/thumbs/320/apple/118/slightly-smiling-face_1f642.png")
+        $("#spoken-text").html(msg)
+        $("#spoken-text").show();
+        $('#currently-typing').hide();
+        animateSmiley();
+        $("#emotion").removeClass("animated swing infinite")
+        $("#emotion").addClass("animated rubberBand")
+        kathy.Speak(msg);
+        setTimeout(() => {
+          $("#spoken-text").hide();
+        }, 6000);
+      });
+
+      socket.on('typing', function(data){
+        console.log('typing event recieved');
+        console.log(data);
+        if (data == "typing") {
+          $("#spoken-text").hide();
+          $('#currently-typing').show();
+          $("#emotion").addClass("animated swing infinite")
+          $("#emotion").attr("src", "https://emojipedia-us.s3.amazonaws.com/thumbs/320/apple/118/thinking-face_1f914.png")
+        }
+        else {
+          $('#currently-typing').hide();
+          $("#emotion").removeClass("animated swing infinite")
+          $("#spoken-text").show();
+          $("#emotion").attr("src", "https://emojipedia-us.s3.amazonaws.com/thumbs/320/apple/118/slightly-smiling-face_1f642.png")
+        }
+      })
+
+      function animateBounce() {
+        $('#emotion').addClass('animated rubberBand');
+      }
+
+      //################################################################
+      // Sound Player Setup
+      //################################################################
+      const sound_player = require('play-sound')(opts = {});
+      //
+      // $('#emotion').click(() => {
+      //   if($('#emotion').hasClass('animated')){
+      //     console.log("you clicked during an animation.");
+      //     $('#emotion').removeClass('animated rubberBand')
+      //   } else{
+      //     animateBounce();
+      //   }
+      //   sound_player.play('./media/bounce.mp3', (err) => {console.log(err);})
+      // });
+
+      const array1 = ['I wonder if ','Seems like ', 'It\'s probably because ']
+      const array2 = ['the dog is feeling ','your friend wasnt very ', 'im not quite ']
+      const array3 = ['Joyful! ','angry.', 'excited!']
+      let poke_number = 0
+      $("#emotion").mouseup(function() {
+
+        var el = $(this),
+        newone = el.clone(true);
+
+        el.after(newone);
+        $("#emotion").remove();
+
+
+        $('#emotion').addClass("animated rubberBand");
+
+        console.log(el.attr('class'));
+        sound_player.play('./media/bounce.mp3', (err) => {console.log(err);})
+        ipcRenderer.send("detect face");
+      });
+
+      function animateSmiley(){
+        // var el     = $("#emotion"),
+        // newone = el.clone(true);
+        //
+        // el.after(newone);
+
+        // $("#emotion").remove();
+
+        $('#emotion').removeClass("animated");
+        $('#emotion').addClass("animated");
+      }
+
+
+      // JQUERY FUNCTION END
+    });
+  </script>
+</body>
+</html>
